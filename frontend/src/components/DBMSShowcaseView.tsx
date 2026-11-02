@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '../lib/api';
-import { SystemStats, ViewInspection, ExplainResult, TriggerTestResult, AuditLog } from '../lib/types';
+import { ViewInspection, ExplainResult, TriggerTestResult, AuditLog } from '../lib/types';
 import { 
   Terminal, 
   Zap, 
@@ -18,7 +18,6 @@ import {
 
 export const DBMSShowcaseView: React.FC = () => {
   const [activeSubTab, setActiveSubTab] = useState<'views' | 'explain' | 'triggers' | 'schema'>('views');
-  const [stats, setStats] = useState<SystemStats | null>(null);
 
   // Views Inspector State
   const [selectedView, setSelectedView] = useState<string>('v_similarity_evaluation');
@@ -40,14 +39,12 @@ export const DBMSShowcaseView: React.FC = () => {
     let active = true;
     const loadInitialData = async () => {
       try {
-        const [statsData, viewRes, explainRes, logs] = await Promise.all([
-          api.getStats(),
+        const [viewRes, explainRes, logs] = await Promise.all([
           api.getViewData(selectedView),
           api.explainVectorSearch(),
           api.getAuditLogs(),
         ]);
         if (active) {
-          setStats(statsData);
           setViewData(viewRes);
           setExplainData(explainRes);
           setAuditLogs(logs);
@@ -92,9 +89,8 @@ export const DBMSShowcaseView: React.FC = () => {
       setLoadingTrigger(true);
       const res = await api.testTriggerDemo(selectedAnswerId, newScoreInput);
       setTriggerResult(res);
-      const [logs, statsData] = await Promise.all([api.getAuditLogs(), api.getStats()]);
+      const logs = await api.getAuditLogs();
       setAuditLogs(logs);
-      setStats(statsData);
     } catch (err: unknown) {
       alert(`Trigger execution failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -106,39 +102,13 @@ export const DBMSShowcaseView: React.FC = () => {
     <div className="space-y-6">
       {/* Top Banner */}
       <div className="bg-white dark:bg-[#0f1118] border border-slate-200/90 dark:border-white/[0.08] shadow-sm rounded-xl p-5 sm:p-6 transition-colors">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-              PostgreSQL 16 with pgvector
-            </div>
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-white mt-1">
-              DBMS Showcase and Verification Panel
-            </h1>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-              Inspect live SQL views, execute vector cosine search with EXPLAIN ANALYZE,
-              and test automatic trigger-based score recalculations and audit logging.
-            </p>
-          </div>
-
-          {/* Quick Metrics */}
-          {stats && (
-            <div className="grid grid-cols-3 gap-2 bg-slate-50 dark:bg-[#141722] p-3 rounded-lg border border-slate-200/80 dark:border-white/[0.06] text-center transition-colors">
-              <div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Embeddings</div>
-                <div className="text-base font-semibold text-slate-900 dark:text-white font-mono tabular-nums">{stats.embedding_count}</div>
-              </div>
-              <div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Sim Results</div>
-                <div className="text-base font-semibold text-slate-900 dark:text-white font-mono tabular-nums">
-                  {stats.benchmark_similarity_count + stats.peer_plagiarism_count}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Audit Logs</div>
-                <div className="text-base font-semibold text-slate-900 dark:text-white font-mono tabular-nums">{stats.audit_log_count}</div>
-              </div>
-            </div>
-          )}
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
+            DBMS Showcase and Verification Panel
+          </h1>
+          <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
+            Inspect relational views, vector query plans, and database triggers.
+          </p>
         </div>
 
         {/* Sub-Navigation */}
@@ -196,19 +166,19 @@ export const DBMSShowcaseView: React.FC = () => {
       {/* SubTab 1: Live Relational Views */}
       {activeSubTab === 'views' && (
         <div className="bg-white dark:bg-[#0f1118] border border-slate-200/90 dark:border-white/[0.08] shadow-sm rounded-xl p-5 space-y-4 transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-white/[0.06]">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-white/[0.06]">
             <div>
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center space-x-2">
                 <Table className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                 <span>Live View Query Explorer</span>
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Displays live rows synthesized from multi-table joins, subqueries, and vector embeddings.
+                Live views from multi-table joins and embeddings.
               </p>
             </div>
 
             {/* View Selector Buttons */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
               {[
                 { id: 'v_similarity_evaluation', label: 'v_similarity_evaluation' },
                 { id: 'v_plagiarism_matrix', label: 'v_plagiarism_matrix' },
@@ -218,7 +188,7 @@ export const DBMSShowcaseView: React.FC = () => {
                 <button
                   key={v.id}
                   onClick={() => loadViewData(v.id)}
-                  className={`btn-press px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors ${
+                  className={`btn-press whitespace-nowrap px-2.5 py-1.5 rounded-md text-xs font-mono transition-colors ${
                     selectedView === v.id
                       ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 font-medium shadow-sm'
                       : 'bg-slate-100 text-slate-600 hover:text-slate-900 border border-slate-200 dark:bg-[#141722] dark:text-slate-400 dark:hover:text-slate-200 dark:border-white/[0.06]'
@@ -229,7 +199,7 @@ export const DBMSShowcaseView: React.FC = () => {
               ))}
               <button
                 onClick={() => loadViewData(selectedView)}
-                className="btn-press p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-[#141722] dark:hover:bg-white/[0.06] dark:text-slate-400 dark:hover:text-slate-200 border border-slate-200 dark:border-white/[0.06] rounded-md transition-colors"
+                className="btn-press shrink-0 h-[30px] w-[30px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-[#141722] dark:hover:bg-white/[0.06] dark:text-slate-400 dark:hover:text-slate-200 border border-slate-200 dark:border-white/[0.06] rounded-md transition-colors"
                 title="Refresh View"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loadingView ? 'animate-spin' : ''}`} />
@@ -301,7 +271,7 @@ export const DBMSShowcaseView: React.FC = () => {
                 <span>EXPLAIN (ANALYZE, BUFFERS) HNSW Vector Execution Plan</span>
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Demonstrates vector similarity query cost optimization using PostgreSQL pgvector cosine distance operator (&lt;=&gt;).
+                Execution plan for cosine distance vector search (&lt;=&gt;).
               </p>
             </div>
             <button
@@ -359,14 +329,14 @@ export const DBMSShowcaseView: React.FC = () => {
       {/* SubTab 3: Triggers & Audit Trail */}
       {activeSubTab === 'triggers' && (
         <div className="space-y-6">
-          <div className="bg-[#0f1118] border border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.3)] rounded-xl p-5">
-            <div className="pb-4 border-b border-white/[0.06] mb-5">
-              <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
-                <Zap className="w-4 h-4 text-slate-400" />
+          <div className="bg-white dark:bg-[#0f1118] border border-slate-200/90 dark:border-white/[0.08] shadow-sm rounded-xl p-5 transition-colors">
+            <div className="pb-4 border-b border-slate-200 dark:border-white/[0.06] mb-5">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center space-x-2">
+                <Zap className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                 <span>Live PostgreSQL Trigger Playground</span>
               </h3>
               <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-                Test <code className="text-slate-800 dark:text-slate-300 font-mono">trg_recalculate_submission_score</code> and <code className="text-slate-800 dark:text-slate-300 font-mono">trg_audit_answer_score</code> in real-time.
+                Test score recalculation and audit triggers in real time.
               </p>
             </div>
 
@@ -378,8 +348,7 @@ export const DBMSShowcaseView: React.FC = () => {
                   <span>Simulate Answer Score Change</span>
                 </h4>
                 <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Modifying an answer&apos;s marks triggers an automatic recomputation of
-                  <code className="text-slate-900 dark:text-slate-300 font-mono ml-1">SUBMISSION.total_score</code> and inserts an audit log entry.
+                  Score updates recalculate submission totals and append audit records.
                 </p>
 
                 <div>
@@ -497,28 +466,28 @@ export const DBMSShowcaseView: React.FC = () => {
               <div className="bg-slate-50 dark:bg-[#141722] p-3 rounded-lg border border-slate-200 dark:border-white/[0.06] transition-colors">
                 <div className="font-semibold text-slate-900 dark:text-white mb-1">1. Dual Paradigm Database (SQL + Vector)</div>
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                  Utilizes PostgreSQL 16 with the <code className="text-slate-800 dark:text-slate-300 font-mono">pgvector</code> extension. Answers are embedded into 384-dimensional dense vectors using <code className="text-slate-800 dark:text-slate-300 font-mono">sentence-transformers/all-MiniLM-L6-v2</code> and indexed using <code className="text-slate-800 dark:text-slate-300 font-mono">HNSW (Hierarchical Navigable Small World)</code> with <code className="text-slate-800 dark:text-slate-300 font-mono">vector_cosine_ops</code>.
+                  PostgreSQL 16 with pgvector. Stores 384-dimensional dense embeddings with HNSW cosine indexing.
                 </p>
               </div>
 
               <div className="bg-slate-50 dark:bg-[#141722] p-3 rounded-lg border border-slate-200 dark:border-white/[0.06] transition-colors">
                 <div className="font-semibold text-slate-900 dark:text-white mb-1">2. Strong &amp; Weak Entity Modeling</div>
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                  <code className="text-slate-800 dark:text-slate-300 font-mono">SIMILARITY_RESULT</code> is implemented as a weak entity with identifying composite primary key <code className="text-slate-800 dark:text-slate-300 font-mono">(result_id, embedding_id)</code>, referencing <code className="text-slate-800 dark:text-slate-300 font-mono">ANSWER_EMBEDDING</code> and the compared answer.
+                  <code className="text-slate-800 dark:text-slate-300 font-mono">SIMILARITY_RESULT</code> uses composite key <code className="text-slate-800 dark:text-slate-300 font-mono">(result_id, embedding_id)</code> referencing <code className="text-slate-800 dark:text-slate-300 font-mono">ANSWER_EMBEDDING</code>.
                 </p>
               </div>
 
               <div className="bg-slate-50 dark:bg-[#141722] p-3 rounded-lg border border-slate-200 dark:border-white/[0.06] transition-colors">
                 <div className="font-semibold text-slate-900 dark:text-white mb-1">3. Automated Integrity Triggers</div>
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                  <code className="text-slate-800 dark:text-slate-300 font-mono">trg_recalculate_submission_score</code> recalculates total scores whenever an answer&apos;s marks change, and <code className="text-slate-800 dark:text-slate-300 font-mono">trg_audit_answer_score</code> guarantees complete transparency by maintaining an immutable audit log.
+                  Triggers recalculate submission scores and record immutable audit logs on mark changes.
                 </p>
               </div>
 
               <div className="bg-slate-50 dark:bg-[#141722] p-3 rounded-lg border border-slate-200 dark:border-white/[0.06] transition-colors">
                 <div className="font-semibold text-slate-900 dark:text-white mb-1">4. Stored Procedures</div>
                 <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
-                  <code className="text-slate-800 dark:text-slate-300 font-mono">sp_evaluate_submission</code> evaluates all answers against the gold-standard benchmark in a single atomic transaction.
+                  <code className="text-slate-800 dark:text-slate-300 font-mono">sp_evaluate_submission</code> evaluates all answers against benchmarks within a single transaction.
                 </p>
               </div>
             </div>
@@ -527,34 +496,29 @@ export const DBMSShowcaseView: React.FC = () => {
           <div className="bg-white dark:bg-[#0f1118] border border-slate-200/90 dark:border-white/[0.08] shadow-sm rounded-xl p-5 space-y-4 transition-colors">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center space-x-2">
               <Code2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-              <span>Project &amp; Team Details</span>
+              <span>Project Details</span>
             </h3>
             <div className="bg-slate-50 dark:bg-[#141722] p-4 rounded-lg border border-slate-200 dark:border-white/[0.06] text-xs space-y-2.5 transition-colors">
               <div className="text-slate-700 dark:text-slate-300">
-                <span className="text-slate-500 dark:text-slate-400">Project Title: </span>
-                <span className="text-slate-900 dark:text-white font-medium">Test/Quiz system with Similarity Detection between Answers</span>
+                <span className="text-slate-500 dark:text-slate-400">Project: </span>
+                <span className="text-slate-900 dark:text-white font-medium">Automated Evaluation and Similarity Detection</span>
               </div>
               <div className="text-slate-700 dark:text-slate-300">
                 <span className="text-slate-500 dark:text-slate-400">Course: </span>
-                <span>DBMS Experiential Learning - Level 3 Project</span>
+                <span>DBMS Experiential Learning (Level 3)</span>
               </div>
               <div className="text-slate-700 dark:text-slate-300">
-                <span className="text-slate-500 dark:text-slate-400">Institution: </span>
-                <span>PES University, Bangalore</span>
-              </div>
-              <div className="text-slate-700 dark:text-slate-300">
-                <span className="text-slate-500 dark:text-slate-400">Course Instructor: </span>
+                <span className="text-slate-500 dark:text-slate-400">Instructor: </span>
                 <span className="text-slate-900 dark:text-white font-medium">Dr. Deena Hajim</span>
               </div>
               <div className="pt-2 border-t border-slate-200 dark:border-white/[0.06] space-y-1">
                 <div className="text-slate-800 dark:text-slate-300 font-semibold">Team Members:</div>
-                <div className="text-slate-700 dark:text-slate-300 font-mono">1. Hemanth Andey - SRN: PES2UG24CS061</div>
-                <div className="text-slate-700 dark:text-slate-300 font-mono">2. Ananya Ratnaparkhi - SRN: PES2UG24CS058</div>
+                <div className="text-slate-700 dark:text-slate-300 font-mono">Hemanth Andey (PES2UG24CS061) • Ananya Ratnaparkhi (PES2UG24CS058)</div>
               </div>
               <div className="pt-2 border-t border-slate-200 dark:border-white/[0.06] space-y-1">
-                <div className="text-slate-800 dark:text-slate-300 font-semibold">Verified Architecture:</div>
+                <div className="text-slate-800 dark:text-slate-300 font-semibold">Stack:</div>
                 <div className="text-slate-600 dark:text-slate-400 leading-relaxed font-mono text-[11px]">
-                  Backend: Python FastAPI (port 8000) • Embeddings: sentence-transformers • Database: PostgreSQL 16 (port 5433) • Frontend: Next.js (port 3000)
+                  FastAPI (8000) • PostgreSQL 16 pgvector (5433) • Next.js (3000)
                 </div>
               </div>
             </div>

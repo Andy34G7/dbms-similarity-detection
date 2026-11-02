@@ -139,8 +139,7 @@ export const StudentView: React.FC = () => {
               Assessment Console
             </h1>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-              Complete assigned subjective DBMS assessments evaluated using pgvector dense vector embeddings
-              against teacher benchmark solutions with cosine similarity.
+              Complete subjective assessments evaluated with vector cosine similarity.
             </p>
           </div>
           <div className="flex items-center space-x-3">

@@ -182,8 +182,7 @@ export const TeacherView: React.FC = () => {
               Test Management and Similarity Detection
             </h1>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-              Author tests with reference benchmarks, trigger pgvector semantic evaluation,
-              and inspect the student-to-student pairwise collusion matrix.
+              Manage tests, trigger batch evaluation, and inspect collusion matrices.
             </p>
           </div>
           <div className="flex items-center space-x-2">

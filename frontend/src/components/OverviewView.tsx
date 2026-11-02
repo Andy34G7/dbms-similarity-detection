@@ -8,8 +8,7 @@ import {
   GraduationCap, 
   BookOpen, 
   Terminal, 
-  ArrowRight,
-  Layers
+  ArrowRight
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -33,12 +32,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ setActiveTab }) => {
             Automated Test Evaluation and Vector Similarity System
           </h1>
 
-          <p className="mt-3.5 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Dual-paradigm relational SQL and vector database application built with{' '}
-            <span className="text-slate-900 dark:text-white font-medium">PostgreSQL 16</span> and{' '}
-            <span className="text-slate-900 dark:text-white font-medium">pgvector</span>.
-            Evaluates subjective student test submissions against model benchmark keys and computes pairwise
-            student collusion matrices using dense 384-dimensional sentence embeddings.
+          <p className="mt-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Evaluates test answers and detects collusion using PostgreSQL 16 and pgvector embeddings.
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
@@ -104,8 +99,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ setActiveTab }) => {
               Teacher and Evaluator Portal
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Create tests with gold-standard reference answers, trigger automated vector evaluations,
-              and inspect student-to-student pairwise collusion matrices.
+              Create tests, run batch evaluations, and inspect pairwise collusion.
             </p>
           </div>
           <div className="mt-5 flex items-center text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
@@ -126,8 +120,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ setActiveTab }) => {
               Student Assessment Workspace
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Take subjective tests with technical explanations, submit attempts, and inspect
-              semantic similarity scoring breakdown against benchmark solutions.
+              Submit test answers and view score breakdowns.
             </p>
           </div>
           <div className="mt-5 flex items-center text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
@@ -148,35 +141,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ setActiveTab }) => {
               DBMS Showcase and Viva Hub
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Inspect live PostgreSQL Views, trigger execution of EXPLAIN ANALYZE on HNSW vector indexes,
-              and test reactive triggers recalculating submission totals.
+              Inspect SQL views, HNSW index execution plans, and triggers.
             </p>
           </div>
           <div className="mt-5 flex items-center text-xs font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
             <span>Open viva showcase</span>
             <ArrowRight className="w-3.5 h-3.5 ml-1.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
           </div>
-        </div>
-      </div>
-
-      {/* Architecture & Stack Bar */}
-      <div className="bg-white dark:bg-[#0f1118] border border-slate-200/90 dark:border-white/[0.08] rounded-xl p-4 text-xs text-slate-600 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm transition-colors">
-        <div className="flex items-center space-x-2.5">
-          <Layers className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-          <span>
-            <strong className="text-slate-800 dark:text-slate-200">PES University DBMS Project Team:</strong>{' '}
-            <span className="font-mono text-slate-700 dark:text-slate-300">PES2UG24CS058 (Ananya Ratnaparkhi)</span> &amp;{' '}
-            <span className="font-mono text-slate-700 dark:text-slate-300">PES2UG24CS061 (Hemanth Andey)</span>
-          </span>
-        </div>
-        <div className="flex items-center space-x-2 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-          <span>FastAPI</span>
-          <span>•</span>
-          <span>Next.js 16</span>
-          <span>•</span>
-          <span>pgvector 0.7</span>
-          <span>•</span>
-          <span>PostgreSQL 16</span>
         </div>
       </div>
     </div>

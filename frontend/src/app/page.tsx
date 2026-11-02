@@ -30,17 +30,6 @@ export default function Home() {
         {displayedTab === 'student' && <StudentView />}
         {displayedTab === 'showcase' && <DBMSShowcaseView />}
       </main>
-
-      <footer className="border-t border-slate-200 dark:border-white/[0.06] bg-slate-50 dark:bg-[#0c0d12] py-6 text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div>
-            DBMS Experiential Learning Level 3 Project • Dept of CSE, PES University
-          </div>
-          <div className="font-mono text-slate-600 dark:text-slate-400">
-            PES2UG24CS058 (Ananya Ratnaparkhi) &amp; PES2UG24CS061 (Hemanth Andey)
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

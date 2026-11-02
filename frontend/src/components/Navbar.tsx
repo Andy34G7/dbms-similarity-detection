@@ -6,7 +6,6 @@ import { useTheme } from '../context/ThemeContext';
 import { 
   GraduationCap, 
   UserCheck, 
-  Database, 
   BookOpen, 
   ChevronDown, 
   ShieldCheck, 
@@ -31,23 +30,11 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14">
           
-          {/* Logo & Project Title */}
-          <div className="flex items-center space-x-3 cursor-pointer select-none" onClick={() => setActiveTab('overview')}>
-            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-white/[0.06] border border-slate-200 dark:border-white/[0.1] flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-xs">
-              <Database className="w-4 h-4 text-slate-700 dark:text-slate-300" />
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-semibold text-sm text-slate-900 dark:text-white tracking-tight">
-                  AutoEval DBMS
-                </span>
-              </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center space-x-1.5">
-                <span>PES University</span>
-                <span>•</span>
-                <span className="font-mono text-slate-600 dark:text-slate-400">PES2UG24CS058 &amp; 061</span>
-              </div>
-            </div>
+          {/* Project Title */}
+          <div className="cursor-pointer select-none" onClick={() => setActiveTab('overview')}>
+            <span className="font-semibold text-sm text-slate-900 dark:text-white tracking-tight">
+              AutoEval DBMS
+            </span>
           </div>
 
           {/* Navigation Links */}
@@ -206,14 +193,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
                             {user.name.charAt(0)}
                           </div>
                           <div>
-                            <div className="flex items-center space-x-1.5">
-                              <span className="font-medium text-slate-900 dark:text-slate-200">{user.name}</span>
-                              {(user.id === 'PES2UG24CS058' || user.id === 'PES2UG24CS061') && (
-                                <span className="text-[9px] bg-slate-200 dark:bg-white/[0.08] text-slate-700 dark:text-slate-300 px-1 rounded font-mono">
-                                  Team
-                                </span>
-                              )}
-                            </div>
+                            <div className="font-medium text-slate-900 dark:text-slate-200">{user.name}</div>
                             <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{user.deptOrSRN}</div>
                           </div>
                         </div>
