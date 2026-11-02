@@ -50,6 +50,9 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(data),
   }),
+  deleteTest: (testId: string) => fetchJson<{ message: string; test_id: string }>(`/api/tests/${testId}`, {
+    method: 'DELETE',
+  }),
 
   // Submissions
   getSubmissions: (studentId?: string, testId?: string) => {
@@ -61,6 +64,10 @@ export const api = {
   },
   getSubmissionDetails: (submissionId: string) =>
     fetchJson<Submission>(`/api/submissions/${submissionId}`),
+  deleteSubmission: (submissionId: string) =>
+    fetchJson<{ message: string; submission_id: string }>(`/api/submissions/${submissionId}`, {
+      method: 'DELETE',
+    }),
   submitTest: (data: {
     student_id: string;
     test_id: string;

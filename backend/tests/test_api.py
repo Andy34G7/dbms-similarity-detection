@@ -61,7 +61,8 @@ def test_showcase_views(client):
         "v_test_details",
         "v_student_submission_summary",
         "v_similarity_evaluation",
-        "v_plagiarism_matrix"
+        "v_plagiarism_matrix",
+        "v_high_collusion_candidates"
     ]
     for view in views:
         res = client.get(f"/api/showcase/views/{view}")
@@ -191,3 +192,52 @@ def test_validation_nonexistent_foreign_keys(client):
     })
     assert res_sub.status_code == 400
     assert "does not exist" in res_sub.json()["detail"].lower()
+
+def test_delete_submission_and_test(client):
+    # Create temporary test for deletion
+    test_id = f"T_DEL_{uuid.uuid4().hex[:6].upper()}"
+    res = client.post("/api/tests", json={
+        "test_id": test_id,
+        "teacher_id": "T101",
+        "title": "Temporary Test For Deletion",
+        "description": "Will be deleted",
+        "questions": [
+            {
+                "question_text": "What is two phase locking?",
+                "marks": 5.0,
+                "sample_solution": "2PL protocol ensures serializability."
+            }
+        ]
+    })
+    assert res.status_code == 201
+
+    # Get question id
+    t_info = client.get(f"/api/tests/{test_id}").json()
+    qid = t_info["questions"][0]["question_id"]
+
+    # Submit answer
+    sub_res = client.post("/api/submissions?auto_evaluate=true", json={
+        "student_id": "PES2UG24CS058",
+        "test_id": test_id,
+        "answers": [
+            {"question_id": qid, "answer_text": "2PL guarantees serializable transaction schedules."}
+        ]
+    })
+    assert sub_res.status_code == 201
+    sub_id = sub_res.json()["submission_id"]
+
+    # Delete submission
+    del_sub_res = client.delete(f"/api/submissions/{sub_id}")
+    assert del_sub_res.status_code == 200
+
+    # Verify submission deleted
+    check_sub = client.get(f"/api/submissions/{sub_id}")
+    assert check_sub.status_code == 404
+
+    # Delete test (cascades all questions & benchmark data)
+    del_test_res = client.delete(f"/api/tests/{test_id}")
+    assert del_test_res.status_code == 200
+
+    # Verify test deleted
+    check_test = client.get(f"/api/tests/{test_id}")
+    assert check_test.status_code == 404

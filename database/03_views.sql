@@ -119,3 +119,34 @@ JOIN STUDENT st2 ON sub2.student_id = st2.student_id
 JOIN QUESTION q ON a1.question_id = q.question_id
 WHERE sr.comparison_type = 'PEER_PLAGIARISM'
   AND st1.student_id < st2.student_id;
+
+-- -----------------------------------------------------------------------------
+-- 5. Collusion Candidates Summary (Demonstrating GROUP BY with HAVING & Aggregates)
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_high_collusion_candidates AS
+SELECT 
+    st1.student_id AS student_1_id,
+    st1.name AS student_1_name,
+    st2.student_id AS student_2_id,
+    st2.name AS student_2_name,
+    COUNT(DISTINCT q.question_id) AS shared_similar_questions,
+    ROUND(AVG(sr.similarity_score), 4) AS average_pairwise_similarity,
+    ROUND(MAX(sr.similarity_score), 4) AS peak_similarity_score
+FROM SIMILARITY_RESULT sr
+JOIN ANSWER_EMBEDDING ae ON sr.embedding_id = ae.embedding_id
+JOIN ANSWER a1 ON ae.answer_id = a1.answer_id
+JOIN SUBMISSION sub1 ON a1.submission_id = sub1.submission_id
+JOIN STUDENT st1 ON sub1.student_id = st1.student_id
+JOIN ANSWER a2 ON sr.compared_answer_id = a2.answer_id
+JOIN SUBMISSION sub2 ON a2.submission_id = sub2.submission_id
+JOIN STUDENT st2 ON sub2.student_id = st2.student_id
+JOIN QUESTION q ON a1.question_id = q.question_id
+WHERE sr.comparison_type = 'PEER_PLAGIARISM'
+  AND st1.student_id < st2.student_id
+GROUP BY 
+    st1.student_id,
+    st1.name,
+    st2.student_id,
+    st2.name
+HAVING AVG(sr.similarity_score) >= 0.50 AND COUNT(DISTINCT q.question_id) >= 1
+ORDER BY peak_similarity_score DESC;

@@ -8,6 +8,7 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Drop existing views and tables if rebuilding
+DROP VIEW IF EXISTS v_high_collusion_candidates CASCADE;
 DROP VIEW IF EXISTS v_plagiarism_matrix CASCADE;
 DROP VIEW IF EXISTS v_similarity_evaluation CASCADE;
 DROP VIEW IF EXISTS v_student_submission_summary CASCADE;
@@ -205,3 +206,14 @@ CREATE INDEX idx_sim_compared_answer ON SIMILARITY_RESULT(compared_answer_id);
 CREATE INDEX idx_embedding_vector_hnsw 
 ON ANSWER_EMBEDDING 
 USING hnsw (embedding vector_cosine_ops);
+
+-- -----------------------------------------------------------------------------
+-- 11. DDL Schema Alterations (Demonstrating ALTER TABLE & Schema Evolution)
+-- -----------------------------------------------------------------------------
+-- Add rubric guidelines column to QUESTION table
+ALTER TABLE QUESTION ADD COLUMN IF NOT EXISTS rubric_guidelines TEXT;
+
+-- Add score upper bound check on SUBMISSION table
+ALTER TABLE SUBMISSION DROP CONSTRAINT IF EXISTS chk_submission_score_upper;
+ALTER TABLE SUBMISSION ADD CONSTRAINT chk_submission_score_upper CHECK (total_score <= 1000.0);
+

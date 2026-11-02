@@ -19,7 +19,8 @@ def inspect_view(view_name: str):
         "v_test_details", 
         "v_student_submission_summary", 
         "v_similarity_evaluation", 
-        "v_plagiarism_matrix"
+        "v_plagiarism_matrix",
+        "v_high_collusion_candidates"
     ]
     if view_name not in valid_views:
         raise HTTPException(

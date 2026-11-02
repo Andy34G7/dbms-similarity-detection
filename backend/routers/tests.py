@@ -109,3 +109,27 @@ def add_question(test_id: str, q_in: QuestionCreate):
 
     embedding_service.sync_missing_embeddings()
     return {"message": "Question added successfully", "question_id": qid}
+
+@router.delete("/{test_id}")
+def delete_test(test_id: str):
+    """
+    Deletes a test and cascades deletion to questions, submissions, answers,
+    embeddings, and similarity results (demonstrating DML DELETE with foreign key cascade).
+    Records an entry in AUDIT_LOG.
+    """
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("SELECT test_id, title FROM TEST WHERE test_id = %s;", (test_id,))
+        test = cursor.fetchone()
+        if not test:
+            raise HTTPException(status_code=404, detail="Test not found")
+
+        # Record in AUDIT_LOG
+        cursor.execute("""
+            INSERT INTO AUDIT_LOG (entity_name, record_id, action_type, old_val, new_val, performed_by)
+            VALUES ('TEST', %s, 'DELETE_TEST', %s, NULL, 'TEACHER');
+        """, (test_id, f"Deleted test: {dict(test)['title']}"))
+
+        # Delete test (cascades via ON DELETE CASCADE to all child tables)
+        cursor.execute("DELETE FROM TEST WHERE test_id = %s;", (test_id,))
+
+    return {"message": f"Test {test_id} and all associated records deleted successfully", "test_id": test_id}

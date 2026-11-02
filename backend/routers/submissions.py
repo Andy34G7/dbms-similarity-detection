@@ -123,3 +123,25 @@ def submit_test(sub_in: SubmissionCreate, auto_evaluate: bool = Query(True, desc
         }
 
     return {"message": "Submission received successfully", "submission_id": submission_id}
+
+@router.delete("/{submission_id}")
+def delete_submission(submission_id: str):
+    """
+    Deletes a student submission and cascades deletion to answers, embeddings,
+    and similarity scores. Records an entry in AUDIT_LOG.
+    """
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute("SELECT submission_id, student_id, test_id FROM SUBMISSION WHERE submission_id = %s;", (submission_id,))
+        sub = cursor.fetchone()
+        if not sub:
+            raise HTTPException(status_code=404, detail="Submission not found")
+
+        sub_dict = dict(sub)
+        cursor.execute("""
+            INSERT INTO AUDIT_LOG (entity_name, record_id, action_type, old_val, new_val, performed_by)
+            VALUES ('SUBMISSION', %s, 'DELETE_SUBMISSION', %s, NULL, 'TEACHER');
+        """, (submission_id, f"Deleted submission by student {sub_dict['student_id']} for test {sub_dict['test_id']}"))
+
+        cursor.execute("DELETE FROM SUBMISSION WHERE submission_id = %s;", (submission_id,))
+
+    return {"message": f"Submission {submission_id} deleted successfully", "submission_id": submission_id}

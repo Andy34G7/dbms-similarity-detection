@@ -182,6 +182,7 @@ export const DBMSShowcaseView: React.FC = () => {
               {[
                 { id: 'v_similarity_evaluation', label: 'v_similarity_evaluation' },
                 { id: 'v_plagiarism_matrix', label: 'v_plagiarism_matrix' },
+                { id: 'v_high_collusion_candidates', label: 'v_high_collusion_candidates' },
                 { id: 'v_student_submission_summary', label: 'v_student_submission_summary' },
                 { id: 'v_test_details', label: 'v_test_details' },
               ].map((v) => (
