@@ -51,6 +51,9 @@ class StudentAnswerInput(BaseModel):
     question_id: str
     answer_text: str
 
+class AnswerTextUpdate(BaseModel):
+    answer_text: str
+
 class SubmissionCreate(BaseModel):
     submission_id: Optional[str] = None
     student_id: str

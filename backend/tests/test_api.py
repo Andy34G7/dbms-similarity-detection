@@ -62,7 +62,9 @@ def test_showcase_views(client):
         "v_student_submission_summary",
         "v_similarity_evaluation",
         "v_plagiarism_matrix",
-        "v_high_collusion_candidates"
+        "v_high_collusion_candidates",
+        "v_student_benchmark_cte",
+        "v_collusion_clusters"
     ]
     for view in views:
         res = client.get(f"/api/showcase/views/{view}")
@@ -241,3 +243,46 @@ def test_delete_submission_and_test(client):
     # Verify test deleted
     check_test = client.get(f"/api/tests/{test_id}")
     assert check_test.status_code == 404
+
+def test_vector_rud_update_and_delete(client):
+    # Create temporary test & submission to exercise Vector Update and Vector Delete
+    test_id = f"T_VRUD_{uuid.uuid4().hex[:6].upper()}"
+    res = client.post("/api/tests", json={
+        "test_id": test_id,
+        "teacher_id": "T101",
+        "title": "Vector RUD Verification Test",
+        "description": "Tests vector update and delete",
+        "questions": [
+            {
+                "question_text": "What is a B+ Tree?",
+                "marks": 10.0,
+                "sample_solution": "A B+ Tree stores data pointers only in leaf nodes linked sequentially."
+            }
+        ]
+    })
+    assert res.status_code == 201
+    qid = client.get(f"/api/tests/{test_id}").json()["questions"][0]["question_id"]
+
+    sub_res = client.post("/api/submissions?auto_evaluate=true", json={
+        "student_id": "PES2UG24CS061",
+        "test_id": test_id,
+        "answers": [{"question_id": qid, "answer_text": "Unrelated initial answer."}]
+    })
+    assert sub_res.status_code == 201
+    sub_id = sub_res.json()["submission_id"]
+    ans_id = client.get(f"/api/submissions/{sub_id}").json()["answers"][0]["answer_id"]
+
+    # Update answer & regenerate vector embedding
+    upd_res = client.put(f"/api/submissions/answers/{ans_id}", json={
+        "answer_text": "A B+ Tree keeps data pointers in leaf nodes linked sequentially for fast range scans."
+    })
+    assert upd_res.status_code == 200
+    assert upd_res.json()["embedding_id"] == f"EMB_{ans_id}"
+
+    # Delete vector embedding directly
+    del_vec_res = client.delete(f"/api/showcase/embeddings/{ans_id}")
+    assert del_vec_res.status_code == 200
+    assert del_vec_res.json()["embedding_id"] == f"EMB_{ans_id}"
+
+    # Cleanup
+    client.delete(f"/api/tests/{test_id}")

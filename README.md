@@ -90,7 +90,7 @@ erDiagram
     }
 
     QUESTION {
-        varchar(20) question_id PK
+        varchar(40) question_id PK
         varchar(20) test_id FK
         text question_text
         numeric marks
@@ -107,7 +107,7 @@ erDiagram
     }
 
     SUBMISSION {
-        varchar(20) submission_id PK
+        varchar(30) submission_id PK
         varchar(20) student_id FK
         varchar(20) test_id FK
         timestamptz submitted_at
@@ -116,9 +116,9 @@ erDiagram
     }
 
     ANSWER {
-        varchar(20) answer_id PK
-        varchar(20) submission_id FK
-        varchar(20) question_id FK
+        varchar(40) answer_id PK
+        varchar(30) submission_id FK
+        varchar(40) question_id FK
         text answer_text
         numeric marks_awarded
         boolean is_reference
@@ -126,8 +126,8 @@ erDiagram
     }
 
     ANSWER_EMBEDDING {
-        varchar(20) embedding_id PK
-        varchar(20) answer_id FK, UK
+        varchar(50) embedding_id PK
+        varchar(40) answer_id FK, UK
         vector_384 embedding
         varchar(100) model_name
         timestamptz created_at
@@ -215,10 +215,10 @@ The requirements mandate using at least two database paradigms. We adopted **Opt
 ### 8.3 Table: `QUESTION`
 | Column | Type | Nullable | Key / Constraint | Description |
 |---|---|---|---|---|
-| `question_id` | VARCHAR(20) | NO | PK | Unique question identifier (e.g. Q101) |
+| `question_id` | VARCHAR(40) | NO | PK | Unique question identifier (e.g. Q101) |
 | `test_id` | VARCHAR(20) | NO | FK -> TEST.test_id | Parent test |
 | `question_text` | TEXT | NO | - | Subjective prompt text |
-| `marks` | NUMERIC(5,2) | NO | DEFAULT 1.00, CHECK (marks > 0) | Maximum marks for the question |
+| `marks` | NUMERIC(5,2) | NO | DEFAULT 10.00, CHECK (marks > 0) | Maximum marks for the question |
 | `sample_solution` | TEXT | YES | - | Reference benchmark answer |
 | `rubric_guidelines` | TEXT | YES | - | Grading rubric guidelines (via ALTER TABLE) |
 | `created_at` | TIMESTAMPTZ | YES | DEFAULT CURRENT_TIMESTAMP | Creation timestamp |

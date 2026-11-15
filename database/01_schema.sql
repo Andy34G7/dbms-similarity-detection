@@ -8,6 +8,8 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- Drop existing views and tables if rebuilding
+DROP VIEW IF EXISTS v_collusion_clusters CASCADE;
+DROP VIEW IF EXISTS v_student_benchmark_cte CASCADE;
 DROP VIEW IF EXISTS v_high_collusion_candidates CASCADE;
 DROP VIEW IF EXISTS v_plagiarism_matrix CASCADE;
 DROP VIEW IF EXISTS v_similarity_evaluation CASCADE;

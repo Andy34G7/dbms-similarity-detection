@@ -150,3 +150,95 @@ GROUP BY
     st2.name
 HAVING AVG(sr.similarity_score) >= 0.50 AND COUNT(DISTINCT q.question_id) >= 1
 ORDER BY peak_similarity_score DESC;
+
+-- -----------------------------------------------------------------------------
+-- 6. Student Benchmark Ranking View (Demonstrating Common Table Expression / CTE)
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_student_benchmark_cte AS
+WITH benchmark_scores AS (
+    SELECT 
+        s.submission_id,
+        s.student_id,
+        s.test_id,
+        AVG(sr.similarity_score) AS avg_benchmark_similarity,
+        COUNT(sr.result_id) AS evaluated_questions
+    FROM SUBMISSION s
+    JOIN ANSWER a ON s.submission_id = a.submission_id
+    JOIN ANSWER_EMBEDDING ae ON a.answer_id = ae.answer_id
+    JOIN SIMILARITY_RESULT sr ON ae.embedding_id = sr.embedding_id
+    WHERE sr.comparison_type = 'BENCHMARK'
+      AND s.student_id != 'REF_BENCHMARK'
+    GROUP BY s.submission_id, s.student_id, s.test_id
+)
+SELECT 
+    bs.submission_id,
+    st.student_id,
+    st.name AS student_name,
+    t.test_id,
+    t.title AS test_title,
+    bs.evaluated_questions,
+    ROUND(bs.avg_benchmark_similarity, 4) AS avg_benchmark_similarity,
+    sub.total_score,
+    RANK() OVER (PARTITION BY t.test_id ORDER BY bs.avg_benchmark_similarity DESC) AS similarity_rank
+FROM benchmark_scores bs
+JOIN STUDENT st ON bs.student_id = st.student_id
+JOIN TEST t ON bs.test_id = t.test_id
+JOIN SUBMISSION sub ON bs.submission_id = sub.submission_id;
+
+-- -----------------------------------------------------------------------------
+-- 7. Transitive Collusion Clusters View (Demonstrating WITH RECURSIVE CTE)
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_collusion_clusters AS
+WITH RECURSIVE collusion_edges AS (
+    SELECT DISTINCT
+        q.question_id,
+        sub1.student_id AS src_student_id,
+        sub2.student_id AS dst_student_id,
+        sr.similarity_score
+    FROM SIMILARITY_RESULT sr
+    JOIN ANSWER_EMBEDDING ae ON sr.embedding_id = ae.embedding_id
+    JOIN ANSWER a1 ON ae.answer_id = a1.answer_id
+    JOIN SUBMISSION sub1 ON a1.submission_id = sub1.submission_id
+    JOIN ANSWER a2 ON sr.compared_answer_id = a2.answer_id
+    JOIN SUBMISSION sub2 ON a2.submission_id = sub2.submission_id
+    JOIN QUESTION q ON a1.question_id = q.question_id
+    WHERE sr.comparison_type = 'PEER_PLAGIARISM'
+      AND sr.similarity_score >= 0.85
+),
+collusion_chain AS (
+    SELECT 
+        ce.question_id,
+        ce.src_student_id AS root_student_id,
+        ce.dst_student_id AS linked_student_id,
+        1 AS hop_depth,
+        ce.similarity_score AS edge_similarity,
+        ARRAY[ce.src_student_id, ce.dst_student_id]::VARCHAR[] AS cluster_path
+    FROM collusion_edges ce
+    UNION ALL
+    SELECT 
+        cc.question_id,
+        cc.root_student_id,
+        ce.dst_student_id,
+        cc.hop_depth + 1,
+        ce.similarity_score,
+        cc.cluster_path || ce.dst_student_id
+    FROM collusion_chain cc
+    JOIN collusion_edges ce 
+      ON cc.question_id = ce.question_id
+     AND cc.linked_student_id = ce.src_student_id
+    WHERE NOT (ce.dst_student_id = ANY(cc.cluster_path))
+      AND cc.hop_depth < 5
+)
+SELECT 
+    cc.question_id,
+    cc.root_student_id,
+    st1.name AS root_student_name,
+    cc.linked_student_id,
+    st2.name AS linked_student_name,
+    cc.hop_depth,
+    cc.edge_similarity,
+    array_to_string(cc.cluster_path, ' -> ') AS collusion_path
+FROM collusion_chain cc
+JOIN STUDENT st1 ON cc.root_student_id = st1.student_id
+JOIN STUDENT st2 ON cc.linked_student_id = st2.student_id
+ORDER BY cc.question_id, cc.root_student_id, cc.hop_depth;

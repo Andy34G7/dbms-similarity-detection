@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
 from db import get_db_cursor
-from models import SubmissionCreate, SubmissionOut
+from models import SubmissionCreate, SubmissionOut, AnswerTextUpdate
+from config import settings
 from services.embedding_service import embedding_service
 from services.evaluation_service import evaluation_service
 import uuid
@@ -123,6 +124,64 @@ def submit_test(sub_in: SubmissionCreate, auto_evaluate: bool = Query(True, desc
         }
 
     return {"message": "Submission received successfully", "submission_id": submission_id}
+
+@router.put("/answers/{answer_id}")
+def update_answer_and_vector(answer_id: str, req: AnswerTextUpdate):
+    """
+    Updates an answer's text, regenerates its 384-d vector embedding in ANSWER_EMBEDDING
+    (demonstrating Vector Update), logs the vector update, and re-evaluates the submission.
+    """
+    cleaned_text = (req.answer_text or "").strip()
+    if not cleaned_text:
+        raise HTTPException(status_code=400, detail="answer_text cannot be empty")
+
+    new_embedding = embedding_service.encode(cleaned_text)
+    emb_id = f"EMB_{answer_id}"
+
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "SELECT answer_id, submission_id, is_reference FROM ANSWER WHERE answer_id = %s;",
+            (answer_id,),
+        )
+        ans = cursor.fetchone()
+        if not ans:
+            raise HTTPException(status_code=404, detail="Answer not found")
+
+        cursor.execute(
+            "UPDATE ANSWER SET answer_text = %s WHERE answer_id = %s;",
+            (cleaned_text, answer_id),
+        )
+        cursor.execute(
+            """
+            INSERT INTO ANSWER_EMBEDDING (embedding_id, answer_id, embedding, model_name)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (answer_id)
+            DO UPDATE SET
+                embedding = EXCLUDED.embedding,
+                model_name = EXCLUDED.model_name,
+                created_at = CURRENT_TIMESTAMP;
+            """,
+            (emb_id, answer_id, new_embedding, settings.EMBEDDING_MODEL),
+        )
+        cursor.execute(
+            """
+            INSERT INTO AUDIT_LOG (entity_name, record_id, action_type, old_val, new_val, performed_by)
+            VALUES ('ANSWER_EMBEDDING', %s, 'UPDATE_VECTOR', 'previous_embedding', %s, 'API_VECTOR_UPDATE');
+            """,
+            (emb_id, f"Re-embedded answer {answer_id} ({settings.EMBEDDING_MODEL})"),
+        )
+
+    eval_summary = None
+    if not ans["is_reference"]:
+        eval_res = evaluation_service.evaluate_submission(ans["submission_id"])
+        eval_summary = eval_res.get("summary")
+
+    return {
+        "message": f"Answer {answer_id} and vector embedding {emb_id} updated",
+        "answer_id": answer_id,
+        "embedding_id": emb_id,
+        "summary": eval_summary,
+    }
 
 @router.delete("/{submission_id}")
 def delete_submission(submission_id: str):

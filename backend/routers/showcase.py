@@ -20,7 +20,9 @@ def inspect_view(view_name: str):
         "v_student_submission_summary", 
         "v_similarity_evaluation", 
         "v_plagiarism_matrix",
-        "v_high_collusion_candidates"
+        "v_high_collusion_candidates",
+        "v_student_benchmark_cte",
+        "v_collusion_clusters"
     ]
     if view_name not in valid_views:
         raise HTTPException(
@@ -48,7 +50,10 @@ def explain_vector_search():
     Runs PostgreSQL EXPLAIN (ANALYZE, BUFFERS) on a pgvector cosine distance query
     demonstrating HNSW index scanning, cost estimation, and buffer hits.
     """
-    with get_db_cursor(commit=False) as cursor:
+    with get_db_cursor(commit=True) as cursor:
+        # Force HNSW index scan even on small seed datasets so the index plan is demonstrated
+        cursor.execute("SET LOCAL enable_seqscan = off;")
+
         # Check if benchmark embedding exists
         cursor.execute("SELECT answer_id FROM ANSWER WHERE is_reference = TRUE LIMIT 1;")
         ref = cursor.fetchone()
@@ -169,3 +174,37 @@ def get_system_stats():
         """)
         stats = cursor.fetchone()
         return dict(stats) if stats else {}
+
+@router.delete("/embeddings/{answer_id}")
+def delete_vector_embedding(answer_id: str):
+    """
+    Directly deletes a vector embedding row from ANSWER_EMBEDDING (demonstrating Vector Delete),
+    cascading to dependent SIMILARITY_RESULT rows and recording an AUDIT_LOG entry.
+    """
+    with get_db_cursor(commit=True) as cursor:
+        cursor.execute(
+            "SELECT embedding_id FROM ANSWER_EMBEDDING WHERE answer_id = %s;",
+            (answer_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Embedding not found for answer")
+
+        emb_id = row["embedding_id"]
+        cursor.execute(
+            "DELETE FROM ANSWER_EMBEDDING WHERE embedding_id = %s;",
+            (emb_id,),
+        )
+        cursor.execute(
+            """
+            INSERT INTO AUDIT_LOG (entity_name, record_id, action_type, old_val, new_val, performed_by)
+            VALUES ('ANSWER_EMBEDDING', %s, 'DELETE_VECTOR', %s, NULL, 'API_VECTOR_DELETE');
+            """,
+            (emb_id, f"Deleted vector for answer {answer_id}"),
+        )
+
+        return {
+            "message": f"Vector embedding {emb_id} deleted successfully",
+            "embedding_id": emb_id,
+            "answer_id": answer_id,
+        }
