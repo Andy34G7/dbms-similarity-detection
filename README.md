@@ -1,13 +1,9 @@
 # Automated Test Evaluation & Vector Similarity System
-
-> **PES University - Department of Computer Science & Engineering**  
-> **Course:** Database Management Systems (DBMS Experiential Learning - Level 3 Project)  
-> **Course Instructors:** Dr. Deena Hajim, Prof. Nagasundari S  
-> **Team Members:**  
-> - **Ananya Ratnaparkhi** - `PES2UG24CS058`  
-> - **Hemanth Andey** - `PES2UG24CS061`  
-> **Database:** PostgreSQL 16 with `pgvector` Extension (SQL + Vector Dual Paradigm)  
-> **Architecture:** Next.js Fullstack UI + Python FastAPI Vector Microservice + PostgreSQL 16
+**Team Members:**  
+Ananya Ratnaparkhi - `PES2UG24CS058`  
+Hemanth Andey - `PES2UG24CS061`  
+**Database:** PostgreSQL 16 with `pgvector` Extension (SQL + Vector Dual Paradigm)  
+**Architecture:** Next.js Fullstack UI + Python FastAPI Vector Microservice + PostgreSQL 16
 
 ---
 
@@ -432,7 +428,7 @@ ORDER BY peak_similarity_score DESC;
 
 ## 12. Application Features & Demonstration Walkthrough
 
-1. **Role Switcher Dropdown:** Click the user profile in the top-right navbar to toggle between Teacher (`Dr. Deena Hajim`, `Prof. Nagasundari S`) and Student (`Ananya Ratnaparkhi`, `Hemanth Andey`, `Vikram Patel`, `Ananya Sharma`).
+1. **Role Switcher Dropdown:** Click the user profile in the top-right navbar to toggle between Teacher and Student.
 2. **Teacher Workspace:**
    - **Test Authoring:** Create new subjective exams with title, syllabus description, and reference solutions.
    - **Batch Auto-Grade:** Click to vectorize answers and execute stored procedure evaluations against benchmarks.
