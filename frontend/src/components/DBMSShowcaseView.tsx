@@ -181,7 +181,7 @@ export const DBMSShowcaseView: React.FC = () => {
       {/* SubTab 1: Live Relational Views */}
       {activeSubTab === 'views' && (
         <div className="bg-white dark:bg-[#0f1118] border border-slate-200/90 dark:border-white/[0.08] shadow-sm rounded-xl p-5 space-y-4 transition-colors">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-white/[0.06]">
+          <div className="flex flex-col gap-3 pb-4 border-b border-slate-200 dark:border-white/[0.06]">
             <div>
               <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center space-x-2">
                 <Table className="w-4 h-4 text-slate-500 dark:text-slate-400" />
@@ -193,7 +193,7 @@ export const DBMSShowcaseView: React.FC = () => {
             </div>
 
             {/* View Selector Buttons */}
-            <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
+            <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'v_similarity_evaluation', label: 'v_similarity_evaluation' },
                 { id: 'v_plagiarism_matrix', label: 'v_plagiarism_matrix' },
