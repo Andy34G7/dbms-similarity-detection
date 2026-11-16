@@ -46,6 +46,7 @@ export const TeacherView: React.FC = () => {
   const [editingMarkValue, setEditingMarkValue] = useState<string>('');
   const [savingMark, setSavingMark] = useState(false);
   const [markFeedback, setMarkFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // New Test Form State
   const [newTitle, setNewTitle] = useState('');
@@ -128,11 +129,12 @@ export const TeacherView: React.FC = () => {
 
   const handleBatchEvaluate = async (testId: string) => {
     try {
+      setActionFeedback(null);
       await api.batchEvaluateTest(testId);
       await refreshData();
-      alert(`Automated pgvector evaluation completed for test ${testId}!`);
+      setActionFeedback({ type: 'success', text: `Automated pgvector evaluation completed for test ${testId}.` });
     } catch (err: unknown) {
-      alert(`Evaluation error: ${err instanceof Error ? err.message : String(err)}`);
+      setActionFeedback({ type: 'error', text: `Evaluation error: ${err instanceof Error ? err.message : String(err)}` });
     }
   };
 
@@ -141,10 +143,12 @@ export const TeacherView: React.FC = () => {
       return;
     }
     try {
+      setActionFeedback(null);
       await api.deleteTest(testId);
       await refreshData();
+      setActionFeedback({ type: 'success', text: `Test ${testId} and all cascaded records deleted.` });
     } catch (err: unknown) {
-      alert(`Failed to delete test: ${err instanceof Error ? err.message : String(err)}`);
+      setActionFeedback({ type: 'error', text: `Failed to delete test: ${err instanceof Error ? err.message : String(err)}` });
     }
   };
 
@@ -153,18 +157,24 @@ export const TeacherView: React.FC = () => {
       return;
     }
     try {
+      setActionFeedback(null);
       await api.deleteSubmission(submissionId);
       await refreshData();
+      setActionFeedback({ type: 'success', text: `Submission ${submissionId} deleted.` });
     } catch (err: unknown) {
-      alert(`Failed to delete submission: ${err instanceof Error ? err.message : String(err)}`);
+      setActionFeedback({ type: 'error', text: `Failed to delete submission: ${err instanceof Error ? err.message : String(err)}` });
     }
   };
 
   const handleCreateTestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return alert('Please enter test title');
+    if (!newTitle.trim()) {
+      setActionFeedback({ type: 'error', text: 'Please enter a test title.' });
+      return;
+    }
     try {
       setSubmittingTest(true);
+      setActionFeedback(null);
       await api.createTest({
         teacher_id: currentUser.id.startsWith('T') ? currentUser.id : 'T101',
         title: newTitle,
@@ -176,9 +186,9 @@ export const TeacherView: React.FC = () => {
       setNewDesc('');
       setNewQuestions([{ question_text: '', marks: 10, sample_solution: '' }]);
       await refreshData();
-      alert('New test and benchmark solution key initialized successfully!');
+      setActionFeedback({ type: 'success', text: 'New test and benchmark solution key initialized.' });
     } catch (err: unknown) {
-      alert(`Error creating test: ${err instanceof Error ? err.message : String(err)}`);
+      setActionFeedback({ type: 'error', text: `Error creating test: ${err instanceof Error ? err.message : String(err)}` });
     } finally {
       setSubmittingTest(false);
     }
@@ -260,6 +270,17 @@ export const TeacherView: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {actionFeedback && (
+          <div className={`mt-4 flex items-center justify-between px-3.5 py-2 rounded-lg text-xs border ${
+            actionFeedback.type === 'error'
+              ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400'
+              : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+          }`}>
+            <span>{actionFeedback.text}</span>
+            <button onClick={() => setActionFeedback(null)} className="ml-3 font-mono opacity-70 hover:opacity-100">✕</button>
+          </div>
+        )}
 
         {/* Tab Switcher */}
         <div className="flex items-center space-x-1 mt-6 border-b border-slate-200 dark:border-white/[0.06] pt-1 overflow-x-auto">

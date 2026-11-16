@@ -25,6 +25,7 @@ export const StudentView: React.FC = () => {
   const [prevUser, setPrevUser] = useState(currentUser.id);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [submissionSuccess, setSubmissionSuccess] = useState<{
     message: string;
     submission_id: string;
@@ -78,6 +79,7 @@ export const StudentView: React.FC = () => {
 
   const handleStartTest = async (testId: string) => {
     try {
+      setErrorBanner(null);
       const fullTest = await api.getTestDetails(testId);
       setActiveTest(fullTest);
       const initialAnswers: Record<string, string> = {};
@@ -86,7 +88,7 @@ export const StudentView: React.FC = () => {
       });
       setAnswers(initialAnswers);
     } catch (err: unknown) {
-      alert(`Could not load test details: ${err instanceof Error ? err.message : String(err)}`);
+      setErrorBanner(`Could not load test details: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -107,6 +109,7 @@ export const StudentView: React.FC = () => {
 
     try {
       setSubmitting(true);
+      setErrorBanner(null);
       const res = await api.submitTest({
         student_id: currentUser.id,
         test_id: activeTest.test_id,
@@ -116,7 +119,7 @@ export const StudentView: React.FC = () => {
       setActiveTest(null);
       await refreshData();
     } catch (err: unknown) {
-      alert(`Error submitting test: ${err instanceof Error ? err.message : String(err)}`);
+      setErrorBanner(`Error submitting test: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSubmitting(false);
     }
@@ -150,6 +153,13 @@ export const StudentView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {errorBanner && (
+        <div className="flex items-center justify-between px-4 py-2.5 rounded-xl text-xs border bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400">
+          <span>{errorBanner}</span>
+          <button onClick={() => setErrorBanner(null)} className="ml-3 font-mono opacity-70 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {/* Active Test Taking Screen */}
       {activeTest ? (
