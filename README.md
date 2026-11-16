@@ -389,6 +389,12 @@ HAVING AVG(sr.similarity_score) >= 0.50 AND COUNT(DISTINCT q.question_id) >= 1
 ORDER BY peak_similarity_score DESC;
 ```
 
+### 10.4 CTE, Recursive Query, Functions & Vector RUD
+- **CTE (`WITH ...`):** Implemented in `v_student_benchmark_cte` (`database/03_views.sql`) using a `benchmark_scores` CTE combined with `RANK() OVER (...)`.
+- **Recursive Query (`WITH RECURSIVE`):** Implemented in `v_collusion_clusters` (`database/03_views.sql`) to trace transitive student collusion chains where pairwise similarity $\ge 0.85$.
+- **Functions & Procedures:** `fn_compute_awarded_marks`, `fn_find_similar_answers`, `sp_evaluate_submission`, and `sp_ensure_benchmark_submission` (`database/02_triggers_procedures.sql`).
+- **Vector RUD:** Read (`<=>` + HNSW `EXPLAIN ANALYZE`), Update (`PUT /api/submissions/answers/{answer_id}`), and Delete (`DELETE /api/showcase/embeddings/{answer_id}` + `ON DELETE CASCADE`).
+
 ---
 
 ## 11. System Architecture

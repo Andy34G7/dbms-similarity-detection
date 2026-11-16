@@ -221,7 +221,9 @@ export const TeacherView: React.FC = () => {
       (sub.student_name?.toLowerCase() || '').includes(query) ||
       (sub.student_id?.toLowerCase() || '').includes(query) ||
       (sub.test_title?.toLowerCase() || '').includes(query);
-    const matchesStatus = statusFilter === 'ALL' || sub.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'EVALUATED' ? sub.status === 'EVALUATED' : sub.status !== 'EVALUATED');
     return matchesSearch && matchesStatus;
   });
 

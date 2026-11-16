@@ -39,7 +39,7 @@ echo "  Database ready."
 # 3. Start Python FastAPI Backend
 echo "[3/4] Starting FastAPI backend on http://localhost:8000..."
 cd backend
-.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000 &
+.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
 BACKEND_PID=$!
 cd ..
 

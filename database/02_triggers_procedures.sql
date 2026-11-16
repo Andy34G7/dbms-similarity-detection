@@ -99,7 +99,57 @@ EXECUTE FUNCTION fn_audit_answer_score_update();
 
 
 -- -----------------------------------------------------------------------------
--- 3. Stored Procedure: Automated Evaluation & Grading using Similarity Score
+-- 3. Scalar & Table-Returning SQL Functions (Rubric: Procedure/Function)
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION fn_compute_awarded_marks(
+    p_similarity NUMERIC,
+    p_max_marks NUMERIC,
+    p_threshold_full NUMERIC DEFAULT 0.75,
+    p_threshold_partial NUMERIC DEFAULT 0.50
+)
+RETURNS NUMERIC(5, 2) AS $$
+BEGIN
+    IF COALESCE(p_similarity, 0.0000) >= p_threshold_full THEN
+        RETURN p_max_marks;
+    ELSIF COALESCE(p_similarity, 0.0000) >= p_threshold_partial THEN
+        RETURN ROUND(p_max_marks * 0.50, 2);
+    ELSE
+        RETURN 0.00;
+    END IF;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION fn_find_similar_answers(
+    p_answer_id VARCHAR(40),
+    p_limit INT DEFAULT 5
+)
+RETURNS TABLE (
+    matched_answer_id VARCHAR(40),
+    student_id VARCHAR(20),
+    similarity_score NUMERIC(5, 4),
+    answer_text TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        a.answer_id,
+        s.student_id,
+        ROUND(GREATEST(0.0000, LEAST(1.0000, (1 - (ae.embedding <=> target.embedding))::numeric)), 4) AS similarity_score,
+        a.answer_text
+    FROM ANSWER_EMBEDDING ae
+    JOIN ANSWER a ON ae.answer_id = a.answer_id
+    JOIN SUBMISSION s ON a.submission_id = s.submission_id
+    CROSS JOIN (
+        SELECT embedding FROM ANSWER_EMBEDDING WHERE answer_id = p_answer_id
+    ) target
+    WHERE a.answer_id <> p_answer_id
+    ORDER BY ae.embedding <=> target.embedding ASC
+    LIMIT p_limit;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
+-- -----------------------------------------------------------------------------
+-- 4. Stored Procedure: Automated Evaluation & Grading using Similarity Score
 -- -----------------------------------------------------------------------------
 CREATE OR REPLACE PROCEDURE sp_evaluate_submission(
     p_submission_id VARCHAR(30),
@@ -111,8 +161,6 @@ AS $$
 DECLARE
     r RECORD;
     v_awarded NUMERIC(5, 2);
-    v_max_marks NUMERIC(5, 2);
-    v_sim NUMERIC(5, 4);
 BEGIN
     -- Iterate through each answer submitted for this submission
     FOR r IN 
@@ -127,17 +175,12 @@ BEGIN
         LEFT JOIN SIMILARITY_RESULT sr ON ae.embedding_id = sr.embedding_id AND sr.comparison_type = 'BENCHMARK'
         WHERE a.submission_id = p_submission_id
     LOOP
-        v_max_marks := r.marks;
-        v_sim := COALESCE(r.similarity_score, 0.0000);
-
-        -- Automated grading tier based on semantic similarity
-        IF v_sim >= p_threshold_full THEN
-            v_awarded := v_max_marks;
-        ELSIF v_sim >= p_threshold_partial THEN
-            v_awarded := ROUND(v_max_marks * 0.50, 2);
-        ELSE
-            v_awarded := 0.00;
-        END IF;
+        v_awarded := fn_compute_awarded_marks(
+            r.similarity_score,
+            r.marks,
+            p_threshold_full,
+            p_threshold_partial
+        );
 
         -- Update marks_awarded. trg_recalculate_submission_score will automatically
         -- fire and update SUBMISSION.total_score and status.
