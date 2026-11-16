@@ -41,6 +41,12 @@ export const TeacherView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'EVALUATED' | 'PENDING'>('ALL');
 
+  // Inline Mark Override State
+  const [editingAnswerId, setEditingAnswerId] = useState<string | null>(null);
+  const [editingMarkValue, setEditingMarkValue] = useState<string>('');
+  const [savingMark, setSavingMark] = useState(false);
+  const [markFeedback, setMarkFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // New Test Form State
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
@@ -178,24 +184,33 @@ export const TeacherView: React.FC = () => {
     }
   };
 
-  const handleManualMarkUpdate = async (answerId: string, currentMark: number) => {
-    const input = prompt('Enter new marks to award (Demonstrates trg_recalculate_submission_score):', String(currentMark));
-    if (input === null) return;
-    const newMark = parseFloat(input);
-    if (isNaN(newMark) || newMark < 0) return alert('Invalid mark value');
+  const handleManualMarkUpdate = async (answerId: string, maxMarks: number) => {
+    const newMark = parseFloat(editingMarkValue);
+    if (isNaN(newMark) || newMark < 0 || newMark > maxMarks) {
+      setMarkFeedback({ type: 'error', text: `Marks must be between 0 and ${maxMarks}.` });
+      return;
+    }
 
     try {
+      setSavingMark(true);
+      setMarkFeedback(null);
       const res = await api.testTriggerDemo(answerId, newMark);
-      alert(
-        `Trigger Fired!\n- Answer marks updated: ${res.answer_marks.old} -> ${res.answer_marks.new}\n- Submission total recalculated: ${res.submission_score.before_trigger} -> ${res.submission_score.after_trigger}\n- Audit Log entry created: Log #${res.audit_log_entry?.log_id}`
-      );
+      setEditingAnswerId(null);
+      setMarkFeedback({
+        type: 'success',
+        text: res.audit_triggered === false
+          ? `Marks unchanged (${res.answer_marks.old}); audit trigger skipped.`
+          : `Updated ${res.answer_marks.old} → ${res.answer_marks.new} (Submission total: ${res.submission_score.before_trigger} → ${res.submission_score.after_trigger}, Audit Log #${res.audit_log_entry?.log_id}).`
+      });
       if (inspectSubmission) {
         const updatedSub = await api.getSubmissionDetails(inspectSubmission.submission_id);
         setInspectSubmission(updatedSub);
       }
       await refreshData();
     } catch (err: unknown) {
-      alert(`Error updating mark: ${err instanceof Error ? err.message : String(err)}`);
+      setMarkFeedback({ type: 'error', text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setSavingMark(false);
     }
   };
 
@@ -716,6 +731,15 @@ export const TeacherView: React.FC = () => {
             </div>
 
             {/* Answer Breakdown */}
+            {markFeedback && (
+              <div className={`mb-4 px-3 py-2 rounded-lg text-xs border ${
+                markFeedback.type === 'error'
+                  ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/30 text-red-700 dark:text-red-400'
+                  : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400'
+              }`}>
+                {markFeedback.text}
+              </div>
+            )}
             <div className="space-y-4">
               {inspectSubmission.answers?.map((ans, idx) => (
                 <div key={ans.answer_id} className="bg-slate-50 dark:bg-[#141722] border border-slate-200 dark:border-white/[0.06] rounded-xl p-4 sm:p-5">
@@ -727,16 +751,49 @@ export const TeacherView: React.FC = () => {
                       <span className="text-xs bg-white dark:bg-[#0c0d13] text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-md font-mono border border-slate-200 dark:border-white/[0.06]">
                         Similarity: <strong className="text-slate-900 dark:text-white">{ans.similarity_score ? (ans.similarity_score * 100).toFixed(1) : 0}%</strong>
                       </span>
-                      <span className="text-xs bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-1 rounded-md font-mono font-medium">
-                        {ans.marks_awarded} / {ans.max_marks || 10.0} Marks
-                      </span>
-                      <button
-                        onClick={() => handleManualMarkUpdate(ans.answer_id, ans.marks_awarded)}
-                        className="btn-press p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] dark:text-slate-300 rounded-md text-xs border border-slate-200 dark:border-white/[0.08]"
-                        title="Override marks & trigger auto total_score recalculation"
-                      >
-                        <Sliders className="w-3.5 h-3.5" />
-                      </button>
+                      {editingAnswerId === ans.answer_id ? (
+                        <div className="flex items-center space-x-1.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={ans.max_marks || 10.0}
+                            step={0.5}
+                            value={editingMarkValue}
+                            onChange={(e) => setEditingMarkValue(e.target.value)}
+                            className="w-20 bg-white dark:bg-[#0c0d13] border border-slate-300 dark:border-white/[0.15] rounded-md px-2 py-1 text-xs font-mono text-slate-900 dark:text-white"
+                          />
+                          <button
+                            onClick={() => handleManualMarkUpdate(ans.answer_id, ans.max_marks || 10.0)}
+                            disabled={savingMark}
+                            className="btn-press px-2.5 py-1 bg-slate-900 text-white dark:bg-white dark:text-slate-950 rounded-md text-xs font-medium disabled:opacity-50"
+                          >
+                            {savingMark ? '...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => { setEditingAnswerId(null); setMarkFeedback(null); }}
+                            className="btn-press px-2 py-1 bg-slate-100 text-slate-600 dark:bg-white/[0.06] dark:text-slate-300 rounded-md text-xs"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="text-xs bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 px-2.5 py-1 rounded-md font-mono font-medium">
+                            {ans.marks_awarded} / {ans.max_marks || 10.0} Marks
+                          </span>
+                          <button
+                            onClick={() => {
+                              setEditingAnswerId(ans.answer_id);
+                              setEditingMarkValue(String(ans.marks_awarded));
+                              setMarkFeedback(null);
+                            }}
+                            className="btn-press p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] dark:text-slate-300 rounded-md text-xs border border-slate-200 dark:border-white/[0.08]"
+                            title="Override marks & trigger auto total_score recalculation"
+                          >
+                            <Sliders className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
 

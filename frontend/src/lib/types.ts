@@ -120,6 +120,7 @@ export interface AuditLog {
 
 export interface TriggerTestResult {
   message: string;
+  audit_triggered?: boolean;
   answer_id: string;
   submission_id: string;
   answer_marks: {

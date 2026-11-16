@@ -83,17 +83,26 @@ def test_plagiarism_matrix_q101(client):
     assert len(data["pairwise_scores"]) >= 6
 
 def test_trigger_demonstration(client):
-    # Test trigger updating score and appending to audit log
-    req = {
-        "answer_id": "ANS_061_Q101",
-        "new_marks": 10.00
-    }
-    response = client.post("/api/showcase/test-trigger", json=req)
-    assert response.status_code == 200
-    data = response.json()
+    # Test trigger updating score and appending to audit log (ensure value changes)
+    res1 = client.post("/api/showcase/test-trigger", json={"answer_id": "ANS_061_Q101", "new_marks": 9.5})
+    assert res1.status_code == 200
+    res2 = client.post("/api/showcase/test-trigger", json={"answer_id": "ANS_061_Q101", "new_marks": 10.0})
+    assert res2.status_code == 200
+    data = res2.json()
     assert data["message"] == "Trigger executed successfully"
+    assert data["audit_triggered"] is True
     assert data["audit_log_entry"] is not None
     assert data["audit_log_entry"]["entity_name"] == "ANSWER"
+
+    # Unchanged marks should skip audit trigger and return audit_triggered=False
+    noop = client.post("/api/showcase/test-trigger", json={"answer_id": "ANS_061_Q101", "new_marks": 10.0})
+    assert noop.status_code == 200
+    assert noop.json()["audit_triggered"] is False
+    assert noop.json()["audit_log_entry"] is None
+
+    # Out-of-bounds marks should return 400
+    bad = client.post("/api/showcase/test-trigger", json={"answer_id": "ANS_061_Q101", "new_marks": 99.0})
+    assert bad.status_code == 400
 
 def test_create_test_and_add_question(client):
     # Tests creating a test, questions, and verifying add_question ID length robustness

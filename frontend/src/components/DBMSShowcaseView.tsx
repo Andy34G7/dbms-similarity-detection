@@ -32,15 +32,17 @@ export const DBMSShowcaseView: React.FC = () => {
   const [selectedAnswerId, setSelectedAnswerId] = useState<string>('ANS_061_Q101');
   const [newScoreInput, setNewScoreInput] = useState<number>(10.0);
   const [triggerResult, setTriggerResult] = useState<TriggerTestResult | null>(null);
+  const [triggerError, setTriggerError] = useState<string | null>(null);
   const [loadingTrigger, setLoadingTrigger] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [loadingLogs, setLoadingLogs] = useState(false);
 
   useEffect(() => {
     let active = true;
     const loadInitialData = async () => {
       try {
         const [viewRes, explainRes, logs] = await Promise.all([
-          api.getViewData(selectedView),
+          api.getViewData('v_similarity_evaluation'),
           api.explainVectorSearch(),
           api.getAuditLogs(),
         ]);
@@ -57,7 +59,19 @@ export const DBMSShowcaseView: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [selectedView]);
+  }, []);
+
+  const refreshAuditLogs = async () => {
+    try {
+      setLoadingLogs(true);
+      const logs = await api.getAuditLogs();
+      setAuditLogs(logs);
+    } catch (err) {
+      console.error('Failed to refresh audit logs:', err);
+    } finally {
+      setLoadingLogs(false);
+    }
+  };
 
   const loadViewData = async (vName: string) => {
     try {
@@ -87,12 +101,13 @@ export const DBMSShowcaseView: React.FC = () => {
   const handleTestTrigger = async () => {
     try {
       setLoadingTrigger(true);
+      setTriggerError(null);
       const res = await api.testTriggerDemo(selectedAnswerId, newScoreInput);
       setTriggerResult(res);
       const logs = await api.getAuditLogs();
       setAuditLogs(logs);
     } catch (err: unknown) {
-      alert(`Trigger execution failed: ${err instanceof Error ? err.message : String(err)}`);
+      setTriggerError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoadingTrigger(false);
     }
@@ -395,11 +410,17 @@ export const DBMSShowcaseView: React.FC = () => {
                   <span>{loadingTrigger ? 'Executing trigger...' : 'Execute UPDATE & Fire Triggers'}</span>
                 </button>
 
+                {triggerError && (
+                  <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg p-3 text-xs text-red-700 dark:text-red-400">
+                    {triggerError}
+                  </div>
+                )}
+
                 {triggerResult && (
                   <div className="bg-emerald-50 dark:bg-[#0c0d13] border border-emerald-200 dark:border-emerald-500/30 rounded-lg p-3 text-xs space-y-1.5 mt-3 transition-colors">
                     <div className="flex items-center space-x-1.5 text-emerald-800 dark:text-emerald-400 font-semibold">
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Trigger Fired Atomically</span>
+                      <span>{triggerResult.audit_triggered === false ? 'Marks Unchanged (Audit Skipped)' : 'Trigger Fired Atomically'}</span>
                     </div>
                     <div className="text-slate-700 dark:text-slate-300">
                       Answer Marks: <span className="font-mono line-through text-slate-400 dark:text-slate-500">{triggerResult.answer_marks.old}</span> → <strong className="font-mono text-emerald-700 dark:text-emerald-400">{triggerResult.answer_marks.new}</strong>
@@ -408,7 +429,9 @@ export const DBMSShowcaseView: React.FC = () => {
                       Recalculated Submission Total: <span className="font-mono line-through text-slate-400 dark:text-slate-500">{triggerResult.submission_score.before_trigger}</span> → <strong className="font-mono text-emerald-700 dark:text-emerald-400">{triggerResult.submission_score.after_trigger}</strong>
                     </div>
                     <div className="text-slate-500 dark:text-slate-400 font-mono text-[11px] pt-1">
-                      Audit Log #{triggerResult.audit_log_entry?.log_id} recorded by {triggerResult.audit_log_entry?.performed_by}
+                      {triggerResult.audit_log_entry
+                        ? `Audit Log #${triggerResult.audit_log_entry.log_id} recorded by ${triggerResult.audit_log_entry.performed_by}`
+                        : triggerResult.message}
                     </div>
                   </div>
                 )}
@@ -422,7 +445,16 @@ export const DBMSShowcaseView: React.FC = () => {
                       <Activity className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                       <span>PostgreSQL AUDIT_LOG Table</span>
                     </h4>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{auditLogs.length} Records</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">{auditLogs.length} Records</span>
+                      <button
+                        onClick={refreshAuditLogs}
+                        className="btn-press p-1 rounded hover:bg-slate-200 dark:hover:bg-white/[0.06] text-slate-500 dark:text-slate-400 transition-colors"
+                        title="Refresh Audit Logs"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${loadingLogs ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2 overflow-y-auto max-h-72 pr-1 contain-scroll">
@@ -439,13 +471,14 @@ export const DBMSShowcaseView: React.FC = () => {
                             {new Date(log.log_time).toLocaleTimeString()}
                           </span>
                         </div>
-                        <div className="text-slate-600 dark:text-slate-400 font-mono text-[11px]">
-                          Target: {log.entity_name} ({log.record_id})
+                        <div className="text-slate-600 dark:text-slate-400 font-mono text-[11px] flex items-center justify-between gap-2">
+                          <span>Target: {log.entity_name} ({log.record_id})</span>
+                          <span className="text-[10px] text-slate-500">{log.performed_by}</span>
                         </div>
                         <div className="text-[11px] text-slate-600 dark:text-slate-400 flex items-center space-x-2">
-                          <span className="line-through text-slate-400 dark:text-slate-500">{log.old_val}</span>
+                          <span className="line-through text-slate-400 dark:text-slate-500">{log.old_val ?? '(none)'}</span>
                           <span>→</span>
-                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{log.new_val}</span>
+                          <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{log.new_val ?? 'DELETED'}</span>
                         </div>
                       </div>
                     ))}

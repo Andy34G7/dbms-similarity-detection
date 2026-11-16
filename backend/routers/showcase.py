@@ -86,7 +86,7 @@ def get_audit_logs():
         cursor.execute("""
             SELECT log_id, entity_name, record_id, action_type, old_val, new_val, performed_by, log_time
             FROM AUDIT_LOG
-            ORDER BY log_time DESC
+            ORDER BY log_time DESC, log_id DESC
             LIMIT 50;
         """)
         logs = cursor.fetchall()
@@ -97,13 +97,14 @@ def test_trigger_demonstration(req: TriggerTestRequest):
     """
     Manually modifies an answer's marks_awarded to demonstrate live firing of:
     1. trg_recalculate_submission_score -> Updates SUBMISSION.total_score
-    2. trg_audit_answer_score -> Appends row to AUDIT_LOG
+    2. trg_audit_answer_score -> Appends row to AUDIT_LOG (when OLD != NEW)
     """
     with get_db_cursor(commit=True) as cursor:
-        # Check answer & get submission_id and old marks
+        # Check answer, max_marks, and submission total
         cursor.execute("""
-            SELECT a.answer_id, a.submission_id, a.marks_awarded, s.total_score AS old_submission_total
+            SELECT a.answer_id, a.submission_id, a.marks_awarded, q.marks AS max_marks, s.total_score AS old_submission_total
             FROM ANSWER a
+            JOIN QUESTION q ON a.question_id = q.question_id
             JOIN SUBMISSION s ON a.submission_id = s.submission_id
             WHERE a.answer_id = %s;
         """, (req.answer_id,))
@@ -111,9 +112,19 @@ def test_trigger_demonstration(req: TriggerTestRequest):
         if not ans:
             raise HTTPException(status_code=404, detail="Answer not found")
 
+        max_marks = float(ans["max_marks"])
+        if req.new_marks < 0 or req.new_marks > max_marks:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Marks must be between 0 and {max_marks} for this question."
+            )
+
         old_marks = float(ans["marks_awarded"])
         sub_id = ans["submission_id"]
         old_sub_total = float(ans["old_submission_total"])
+
+        cursor.execute("SELECT COALESCE(MAX(log_id), 0) AS max_id FROM AUDIT_LOG;")
+        prev_max_log_id = cursor.fetchone()["max_id"]
 
         # Update marks_awarded
         cursor.execute("""
@@ -130,16 +141,24 @@ def test_trigger_demonstration(req: TriggerTestRequest):
         """, (sub_id,))
         new_sub = cursor.fetchone()
 
-        # Check latest audit log entry
+        # Only return an audit log entry if this UPDATE actually fired trg_audit_answer_score
         cursor.execute("""
             SELECT * FROM AUDIT_LOG 
-            WHERE record_id = %s 
-            ORDER BY log_time DESC LIMIT 1;
-        """, (req.answer_id,))
+            WHERE record_id = %s AND log_id > %s
+            ORDER BY log_id DESC LIMIT 1;
+        """, (req.answer_id, prev_max_log_id))
         latest_audit = cursor.fetchone()
 
+        audit_triggered = latest_audit is not None
+        msg = (
+            "Trigger executed successfully"
+            if audit_triggered
+            else f"Marks unchanged ({old_marks}); audit trigger skipped because OLD = NEW"
+        )
+
         return {
-            "message": "Trigger executed successfully",
+            "message": msg,
+            "audit_triggered": audit_triggered,
             "answer_id": req.answer_id,
             "submission_id": sub_id,
             "answer_marks": {
